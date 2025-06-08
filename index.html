@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Journey from Darkness to Light</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #000;
+            overflow: hidden;
+            font-family: 'Times New Roman', serif;
+            cursor: none;
+        }
+        
+        canvas {
+            display: block;
+            position: absolute;
+        }
+        
+        #patternCanvas { z-index: 1; }
+        #blueprintCanvas { z-index: 10; }
+        #maskCanvas { z-index: 50; }
+        
+        .guide {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(26, 26, 46, 0.9);
+            border: 2px solid #d4af37;
+            border-radius: 8px;
+            padding: 15px;
+            color: #d4af37;
+            max-width: 300px;
+            z-index: 100;
+            font-size: 12px;
+        }
+        
+        .progress {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(26, 26, 46, 0.9);
+            border: 2px solid #d4af37;
+            border-radius: 8px;
+            padding: 15px;
+            color: #d4af37;
+            font-size: 11px;
+            z-index: 100;
+        }
+        
+        .cursor {
+            position: absolute;
+            pointer-events: none;
+            z-index: 300;
+            font-size: 20px;
+            transform: translate(-50%, -50%);
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: rgba(10, 10, 30, 0.95);
+            border: 1px solid #d4af37;
+            border-radius: 5px;
+            padding: 10px;
+            color: #d4af37;
+            font-size: 11px;
+            max-width: 250px;
+            z-index: 200;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .tooltip.visible {
+            opacity: 1;
+        }
+        
+        .pathways {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+        
+        .pathway-btn {
+            background: rgba(212, 175, 55, 0.1);
+            border: 1px solid #d4af37;
+            color: #d4af37;
+            padding: 8px 12px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 10px;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+        
+        .pathway-btn:hover, .pathway-btn.active {
+            background: rgba(212, 175, 55, 0.3);
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+        }
+        
+        .blueprint-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+        
+        .blueprint-btn {
+            background: rgba(100, 150, 255, 0.1);
+            border: 1px solid #6496ff;
+            color: #6496ff;
+            padding: 8px 16px;
+            margin: 5px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 10px;
+            transition: all 0.3s;
+            font-family: inherit;
+            display: block;
+        }
+        
+        .blueprint-btn:hover {
+            background: rgba(100, 150, 255, 0.3);
+            box-shadow: 0 0 15px rgba(100, 150, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="guide">
+        <div style="font-weight: bold; margin-bottom: 10px;">∴ SEEK THE LIGHT ∴</div>
+        <div id="guideText">
+            Welcome, seeker. I am here to guide you on your journey from darkness to light. Move your cursor to kindle the flame of knowledge and reveal the hidden symbols of ancient wisdom.
+        </div>
+    </div>
+    
+    <div class="progress">
+        <div style="font-weight: bold; margin-bottom: 10px;">The Winding Staircase</div>
+        <div style="margin: 5px 0;">Symbols Found: <span id="symbolCount">0</span>/12</div>
+        <div style="margin: 5px 0;">Light Radius: <span id="lightRadius">60px</span></div>
+        <div style="margin: 5px 0;">Current Step: <span id="currentStep">Seeking</span></div>
+    </div>
+    
+    <div class="pathways">
+        <button class="pathway-btn active" onclick="setPathway('traditional')">Traditional</button>
+        <button class="pathway-btn" onclick="setPathway('philosophical')">Philosophical</button>
+        <button class="pathway-btn" onclick="setPathway('historical')">Historical</button>
+        <button class="pathway-btn" onclick="setPathway('scientific')">Scientific</button>
+    </div>
+    
+    <div class="blueprint-controls">
+        <button class="blueprint-btn" onclick="startBlueprint()">▶ DIVINE BLUEPRINT</button>
+        <button class="blueprint-btn" onclick="resetBlueprint()">⟲ RESET CREATION</button>
+        <button class="blueprint-btn" onclick="toggleBlueprintMode()" id="blueprintMode">📐 ARCHITECT MODE</button>
+    </div>
+    
+    <div class="tooltip" id="tooltip"></div>
+    <div class="cursor" id="cursor">🕯️</div>
+    
+    <canvas id="patternCanvas"></canvas>
+    <canvas id="maskCanvas"></canvas>
+    <canvas id="blueprintCanvas"></canvas>
+    
+    <script>
+        const patternCanvas = document.getElementById('patternCanvas');
+        const maskCanvas = document.getElementById('maskCanvas');
+        const blueprintCanvas = document.getElementById('blueprintCanvas');
+        const patternCtx = patternCanvas.getContext('2d');
+        const maskCtx = maskCanvas.getContext('2d');
+        const blueprintCtx = blueprintCanvas.getContext('2d');
+        
+        let width, height;
+        let mouseX = -1000, mouseY = -1000;
+        let symbols = [];
+        let discoveredCount = 0;
+        let currentPathway = 'traditional';
+        let blueprintMode = false;
+        let blueprintProgress = 0;
+        let blueprintAnimating = false;
+        let blueprintSteps = [];
+        let drawingProgress = 0;
+        let particles = [];
+        let time = 0;
+        
+        const pathways = {
+            traditional: {
+                name: 'Traditional Masonic Path',
+                color: 'rgba(212, 175, 55, 0.8)',
+                symbols: ['square', 'compass', 'gavel', 'level', 'plumb', 'trowel']
+            },
+            philosophical: {
+                name: 'Philosophical Wisdom',
+                color: 'rgba(180, 120, 255, 0.8)',
+                symbols: ['eye', 'triangle', 'spiral', 'pentagram', 'vesica', 'tree']
+            },
+            historical: {
+                name: 'Historical Journey',
+                color: 'rgba(255, 150, 100, 0.8)',
+                symbols: ['pillar', 'temple', 'keystone', 'arch', 'column', 'stone']
+            },
+            scientific: {
+                name: 'Sacred Sciences',
+                color: 'rgba(100, 255, 150, 0.8)',
+                symbols: ['geometry', 'astronomy', 'mathematics', 'music', 'proportion', 'fibonacci']
+            }
+        };
+        
+        const symbolData = {
+            square: { name: "The Square", meaning: "Symbol of morality and virtue. Teaches us to square our actions by the square of virtue." },
+            compass: { name: "The Compass", meaning: "Represents the boundary of good conduct. Teaches us to circumscribe our desires and passions." },
+            gavel: { name: "The Common Gavel", meaning: "Used to break off the rough edges of stones. Symbolizes breaking away vices and superfluities." },
+            eye: { name: "The All-Seeing Eye", meaning: "Represents Divine Providence watching over us. The eye that never sleeps, never slumbers." },
+            triangle: { name: "The Sacred Triangle", meaning: "Symbol of deity and the threefold nature of divine wisdom, strength, and beauty." },
+            level: { name: "The Level", meaning: "Symbol of equality. Reminds us that all men are created equal and meet on the level." },
+            plumb: { name: "The Plumb", meaning: "Symbol of uprightness and moral rectitude. Teaches us to walk uprightly before God and man." },
+            pillar: { name: "The Pillars", meaning: "Jachin and Boaz, the pillars of Solomon's Temple. Represent establishment and strength." },
+            geometry: { name: "Sacred Geometry", meaning: "The science by which we measure the Earth. Foundation of architecture and divine proportion." },
+            trowel: { name: "The Trowel", meaning: "To spread the cement of brotherly love and affection that binds us in one sacred band." }
+        };
+        
+        function resize() {
+            width = patternCanvas.width = maskCanvas.width = blueprintCanvas.width = window.innerWidth;
+            height = patternCanvas.height = maskCanvas.height = blueprintCanvas.height = window.innerHeight;
+            createSymbols();
+            drawPattern();
+            initializeBlueprint();
+        }
+        
+        function createSymbols() {
+            symbols = [];
+            const pathway = pathways[currentPathway];
+            
+            for (let i = 0; i < 12; i++) {
+                const symbolType = pathway.symbols[i % pathway.symbols.length];
+                const symbolInfo = symbolData[symbolType] || { name: "Unknown Symbol", meaning: "Ancient wisdom awaits discovery." };
+                
+                symbols.push({
+                    x: Math.random() * (width - 100) + 50,
+                    y: Math.random() * (height - 100) + 50,
+                    type: symbolType,
+                    data: symbolInfo,
+                    discovered: false,
+                    size: 25 + Math.random() * 15
+                });
+            }
+        }
+        
+        function drawPattern() {
+            patternCtx.fillStyle = '#000';
+            patternCtx.fillRect(0, 0, width, height);
+            
+            const pathway = pathways[currentPathway];
+            
+            // Draw subtle grid
+            patternCtx.strokeStyle = pathway.color.replace('0.8', '0.1');
+            patternCtx.lineWidth = 1;
+            
+            for (let x = 0; x < width; x += 50) {
+                patternCtx.beginPath();
+                patternCtx.moveTo(x, 0);
+                patternCtx.lineTo(x, height);
+                patternCtx.stroke();
+            }
+            
+            for (let y = 0; y < height; y += 50) {
+                patternCtx.beginPath();
+                patternCtx.moveTo(0, y);
+                patternCtx.lineTo(width, y);
+                patternCtx.stroke();
+            }
+            
+            // Draw symbols
+            symbols.forEach(symbol => {
+                drawSymbol(patternCtx, symbol.type, symbol.x, symbol.y, symbol.size);
+            });
+        }
+        
+        function drawSymbol(ctx, type, x, y, size) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.strokeStyle = pathways[currentPathway].color;
+            ctx.fillStyle = pathways[currentPathway].color.replace('0.8', '0.6');
+            ctx.lineWidth = 2;
+            
+            switch(type) {
+                case 'square':
+                    ctx.strokeRect(-size/2, -size/2, size, size);
+                    ctx.strokeRect(-size/4, -size/4, size/2, size/2);
+                    break;
+                case 'compass':
+                    ctx.beginPath();
+                    ctx.moveTo(0, -size);
+                    ctx.lineTo(-size * 0.7, size * 0.8);
+                    ctx.moveTo(0, -size);
+                    ctx.lineTo(size * 0.7, size * 0.8);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(0, size * 0.3, size * 0.6, Math.PI * 0.2, Math.PI * 0.8);
+                    ctx.stroke();
+                    break;
+                case 'gavel':
+                    ctx.fillRect(-size/3, -size/6, size/1.5, size/3);
+                    ctx.fillRect(-size/8, size/6, size/4, size/2);
+                    break;
+                case 'eye':
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, size * 0.6, size * 0.3, 0, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(0, 0, size * 0.2, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+                case 'triangle':
+                    ctx.beginPath();
+                    ctx.moveTo(0, -size);
+                    ctx.lineTo(-size * 0.8, size * 0.6);
+                    ctx.lineTo(size * 0.8, size * 0.6);
+                    ctx.closePath();
+                    ctx.stroke();
+                    break;
+                case 'level':
+                    ctx.strokeRect(-size, -size/8, size * 2, size/4);
+                    ctx.beginPath();
+                    ctx.arc(0, -size/8, size/6, 0, Math.PI * 2);
+                    ctx.stroke();
+                    break;
+                case 'plumb':
+                    ctx.beginPath();
+                    ctx.moveTo(0, -size);
+                    ctx.lineTo(0, size);
+                    ctx.stroke();
+                    ctx.beginPath();
+                    ctx.arc(0, size, size/4, 0, Math.PI * 2);
+                    ctx.fill();
+                    break;
+                case 'pillar':
+                    ctx.fillRect(-size/4, -size, size/2, size * 2);
+                    ctx.fillRect(-size/2, -size, size, size/4);
+                    break;
+                case 'geometry':
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (i / 6) * Math.PI * 2;
+                        const px = Math.cos(angle) * size * 0.8;
+                        const py = Math.sin(angle) * size * 0.8;
+                        if (i === 0) ctx.moveTo(px, py);
+                        else ctx.lineTo(px, py);
+                    }
+                    ctx.closePath();
+                    ctx.stroke();
+                    break;
+                default:
+                    // Simple circle for unknown symbols
+                    ctx.beginPath();
+                    ctx.arc(0, 0, size/2, 0, Math.PI * 2);
+                    ctx.stroke();
+                    break;
+            }
+            ctx.restore();
+        }
+        
+        function drawMask() {
+            if (blueprintMode) return; // Don't draw mask in blueprint mode
+            
+            maskCtx.fillStyle = '#000';
+            maskCtx.fillRect(0, 0, width, height);
+            
+            if (mouseX > 0 && mouseY > 0) {
+                maskCtx.globalCompositeOperation = 'destination-out';
+                
+                const radius = 80 + discoveredCount * 15; // Larger base radius
+                const gradient = maskCtx.createRadialGradient(mouseX, mouseY, 0, mouseX, mouseY, radius);
+                gradient.addColorStop(0, 'rgba(0, 0, 0, 1)');
+                gradient.addColorStop(0.6, 'rgba(0, 0, 0, 0.8)');
+                gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                
+                maskCtx.fillStyle = gradient;
+                maskCtx.beginPath();
+                maskCtx.arc(mouseX, mouseY, radius, 0, Math.PI * 2);
+                maskCtx.fill();
+                
+                maskCtx.globalCompositeOperation = 'source-over';
+                
+                // Check for symbol discovery with larger detection radius
+                symbols.forEach(symbol => {
+                    if (!symbol.discovered) {
+                        const dist = Math.sqrt((mouseX - symbol.x) ** 2 + (mouseY - symbol.y) ** 2);
+                        if (dist < 60) { // Larger detection area
+                            symbol.discovered = true;
+                            discoveredCount++;
+                            updateProgress();
+                            showTooltip(symbol, mouseX + 20, mouseY);
+                            setTimeout(hideTooltip, 4000); // Show tooltip longer
+                        }
+                    }
+                });
+            }
+        }
+        
+        function showTooltip(symbol, x, y) {
+            const tooltip = document.getElementById('tooltip');
+            tooltip.innerHTML = `
+                <strong>${symbol.data.name}</strong><br>
+                <em>${symbol.data.meaning}</em>
+            `;
+            tooltip.style.left = x + 'px';
+            tooltip.style.top = y + 'px';
+            tooltip.classList.add('visible');
+        }
+        
+        function hideTooltip() {
+            document.getElementById('tooltip').classList.remove('visible');
+        }
+        
+        function updateProgress() {
+            document.getElementById('symbolCount').textContent = discoveredCount;
+            document.getElementById('lightRadius').textContent = (80 + discoveredCount * 15) + 'px';
+            
+            let stepText = 'Seeking';
+            if (discoveredCount >= 7) stepText = 'Liberal Sciences (7)';
+            else if (discoveredCount >= 5) stepText = 'Liberal Arts (5)';
+            else if (discoveredCount >= 3) stepText = 'Working Tools (3)';
+            
+            document.getElementById('currentStep').textContent = stepText;
+            
+            const guideText = document.getElementById('guideText');
+            if (discoveredCount === 0) {
+                guideText.textContent = "Welcome, seeker. Move your light slowly across the darkness to reveal hidden symbols. Your light is stronger than you think!";
+            } else if (discoveredCount < 3) {
+                guideText.textContent = "Excellent! You have found " + discoveredCount + " symbol(s). Keep exploring - there are " + (12 - discoveredCount) + " more symbols waiting to be discovered.";
+            } else if (discoveredCount < 5) {
+                guideText.textContent = "You have learned the working tools. Now seek the liberal arts - the foundation of all knowledge. " + (12 - discoveredCount) + " symbols remain.";
+            } else if (discoveredCount < 7) {
+                guideText.textContent = "Your knowledge of the liberal arts grows. Seek now the liberal sciences to complete your understanding. " + (12 - discoveredCount) + " symbols remain.";
+            } else {
+                guideText.textContent = "Well done! You have climbed the winding staircase of knowledge. Your light now shines bright with wisdom.";
+            }
+        }
+        
+        function setPathway(pathway) {
+            currentPathway = pathway;
+            discoveredCount = 0;
+            
+            // Update button states
+            document.querySelectorAll('.pathway-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            createSymbols();
+            drawPattern();
+            updateProgress();
+        }
+        
+        function animate() {
+            if (blueprintMode) {
+                drawBlueprint();
+            } else {
+                drawMask();
+            }
+            requestAnimationFrame(animate);
+        }
+        
+        // Blueprint Functions
+        function initializeBlueprint() {
+            blueprintSteps = [];
+            blueprintProgress = 0;
+            
+            const centerX = width / 2;
+            const centerY = height / 2;
+            const radius = Math.min(width, height) * 0.15;
+            
+            // Step 1: Divine Unity - First Circle
+            blueprintSteps.push({
+                type: 'circle',
+                x: centerX - radius * 0.5,
+                y: centerY,
+                radius: radius,
+                label: 'Divine Unity'
+            });
+            
+            // Step 2: Sacred Duality - Second Circle
+            blueprintSteps.push({
+                type: 'circle',
+                x: centerX + radius * 0.5,
+                y: centerY,
+                radius: radius,
+                label: 'Sacred Duality'
+            });
+            
+            // Step 3: Vesica Piscis - The Intersection
+            const vesicaHeight = radius * Math.sqrt(3);
+            blueprintSteps.push({
+                type: 'vesica',
+                x1: centerX,
+                y1: centerY - vesicaHeight * 0.5,
+                x2: centerX,
+                y2: centerY + vesicaHeight * 0.5,
+                label: 'Vesica Piscis - Womb of Creation'
+            });
+            
+            // Step 4: Sacred Triangle
+            blueprintSteps.push({
+                type: 'triangle',
+                points: [
+                    [centerX, centerY - vesicaHeight * 0.5],
+                    [centerX - radius * 0.866, centerY + vesicaHeight * 0.25],
+                    [centerX + radius * 0.866, centerY + vesicaHeight * 0.25]
+                ],
+                label: 'Sacred Triangle - Wisdom, Strength, Beauty'
+            });
+            
+            // Step 5: Perfect Square
+            const squareSize = radius * Math.sqrt(2);
+            blueprintSteps.push({
+                type: 'square',
+                x: centerX - squareSize * 0.5,
+                y: centerY - squareSize * 0.5,
+                size: squareSize,
+                label: 'Perfect Square - Foundation of Morality'
+            });
+            
+            // Step 6: Golden Spiral
+            blueprintSteps.push({
+                type: 'spiral',
+                x: centerX,
+                y: centerY,
+                size: radius,
+                label: 'Golden Spiral - Divine Proportion'
+            });
+            
+            // Step 7: Pillars of the Temple
+            blueprintSteps.push({
+                type: 'pillars',
+                leftX: centerX - radius * 1.2,
+                rightX: centerX + radius * 1.2,
+                y: centerY,
+                height: radius * 1.5,
+                label: 'Pillars of Jachin and Boaz'
+            });
+            
+            // Step 8: The Great Light
+            blueprintSteps.push({
+                type: 'illumination',
+                x: centerX,
+                y: centerY,
+                radius: radius * 2,
+                label: 'The Great Light - Fiat Lux'
+            });
+        }
+        
+        function startBlueprint() {
+            blueprintAnimating = true;
+            blueprintProgress = 0;
+            drawingProgress = 0;
+            particles = [];
+            
+            const guideText = document.getElementById('guideText');
+            guideText.textContent = "Witness the Divine Blueprint unfold - the sacred geometry by which the Great Architect designs creation itself.";
+            
+            animateBlueprint();
+        }
+        
+        function animateBlueprint() {
+            if (!blueprintAnimating) return;
+            
+            if (blueprintProgress < blueprintSteps.length) {
+                // Start drawing the current step
+                drawingProgress = 0;
+                
+                const stepDrawingInterval = setInterval(() => {
+                    drawingProgress += 0.02; // Smooth progress increment
+                    
+                    if (drawingProgress >= 1) {
+                        clearInterval(stepDrawingInterval);
+                        
+                        // Step complete - create completion particles
+                        createCompletionParticles();
+                        
+                        // Move to next step
+                        setTimeout(() => {
+                            blueprintProgress++;
+                            if (blueprintProgress <= blueprintSteps.length && blueprintSteps[blueprintProgress - 1]) {
+                                const step = blueprintSteps[blueprintProgress - 1];
+                                const guideText = document.getElementById('guideText');
+                                guideText.textContent = step.label + " - Observe how divine proportion governs all creation.";
+                                animateBlueprint();
+                            } else {
+                                const guideText = document.getElementById('guideText');
+                                guideText.textContent = "The blueprint is complete. From these sacred forms, all architecture and moral instruction flows.";
+                            }
+                        }, 500);
+                    }
+                }, 16); // ~60fps smooth animation
+                
+            } else {
+                const guideText = document.getElementById('guideText');
+                guideText.textContent = "The blueprint is complete. From these sacred forms, all architecture and moral instruction flows.";
+            }
+        }
+        
+        function resetBlueprint() {
+            blueprintAnimating = false;
+            blueprintProgress = 0;
+            drawingProgress = 0;
+            particles = [];
+            blueprintCtx.fillStyle = '#001122';
+            blueprintCtx.fillRect(0, 0, width, height);
+            
+            // Don't automatically change modes - just reset the blueprint
+            const guideText = document.getElementById('guideText');
+            if (blueprintMode) {
+                guideText.textContent = "The canvas awaits the Divine Architect's design. Begin the sacred construction.";
+            } else {
+                guideText.textContent = "Return to your journey of illumination. Seek the light that reveals hidden wisdom.";
+            }
+        }
+        
+        function toggleBlueprintMode() {
+            blueprintMode = !blueprintMode;
+            const btn = document.getElementById('blueprintMode');
+            const cursor = document.getElementById('cursor');
+            
+            if (blueprintMode) {
+                btn.textContent = '🕯️ LIGHT MODE';
+                blueprintCanvas.style.zIndex = '50';
+                maskCanvas.style.zIndex = '10';
+                cursor.textContent = '📐'; // Change to architect cursor
+                resetBlueprint();
+                
+                const guideText = document.getElementById('guideText');
+                guideText.textContent = "You now stand before the divine drafting table. Here, the Great Architect reveals the sacred patterns that govern all creation.";
+            } else {
+                btn.textContent = '📐 ARCHITECT MODE';
+                blueprintCanvas.style.zIndex = '10';
+                maskCanvas.style.zIndex = '50';
+                cursor.textContent = '🕯️'; // Change back to light cursor
+                
+                const guideText = document.getElementById('guideText');
+                guideText.textContent = "Return to your journey of illumination. Move your light to seek the hidden symbols of ancient wisdom.";
+                
+                // Make sure we update the progress display when returning to light mode
+                updateProgress();
+            }
+        }
+        
+        function drawBlueprint() {
+            time++;
+            
+            // Blueprint background with subtle pulse
+            const backgroundPulse = 0.1 + Math.sin(time * 0.02) * 0.05;
+            blueprintCtx.fillStyle = `rgba(0, 17, 34, ${backgroundPulse})`;
+            blueprintCtx.fillRect(0, 0, width, height);
+            
+            // Animated grid pattern
+            blueprintCtx.strokeStyle = `rgba(100, 150, 255, ${0.1 + Math.sin(time * 0.01) * 0.05})`;
+            blueprintCtx.lineWidth = 0.5;
+            const gridSize = 20;
+            const gridOffset = (time * 0.1) % gridSize;
+            
+            for (let x = -gridOffset; x < width + gridSize; x += gridSize) {
+                blueprintCtx.beginPath();
+                blueprintCtx.moveTo(x, 0);
+                blueprintCtx.lineTo(x, height);
+                blueprintCtx.stroke();
+            }
+            
+            for (let y = -gridOffset; y < height + gridSize; y += gridSize) {
+                blueprintCtx.beginPath();
+                blueprintCtx.moveTo(0, y);
+                blueprintCtx.lineTo(width, y);
+                blueprintCtx.stroke();
+            }
+            
+            // Draw completed steps
+            for (let i = 0; i < blueprintProgress && i < blueprintSteps.length; i++) {
+                const step = blueprintSteps[i];
+                if (step) {
+                    drawBlueprintStep(step, 1.0); // Complete steps at full progress
+                }
+            }
+            
+            // Draw current step being animated
+            if (blueprintProgress < blueprintSteps.length && blueprintSteps[blueprintProgress]) {
+                const currentStep = blueprintSteps[blueprintProgress];
+                drawBlueprintStep(currentStep, drawingProgress);
+            }
+            
+            // Update and draw particles
+            updateParticles();
+            drawParticles();
+        }
+        
+        function drawBlueprintStep(step, progress = 1.0) {
+            const alpha = 0.8 * progress;
+            blueprintCtx.strokeStyle = `rgba(255, 215, 0, ${alpha})`;
+            blueprintCtx.fillStyle = `rgba(255, 215, 0, ${alpha * 0.3})`;
+            blueprintCtx.lineWidth = 2 + Math.sin(time * 0.1) * 0.5;
+            blueprintCtx.shadowBlur = 15 * progress;
+            blueprintCtx.shadowColor = `rgba(255, 215, 0, ${alpha * 0.8})`;
+            
+            switch(step.type) {
+                case 'circle':
+                    blueprintCtx.beginPath();
+                    blueprintCtx.arc(step.x, step.y, step.radius, 0, Math.PI * 2 * progress);
+                    blueprintCtx.stroke();
+                    break;
+                    
+                case 'vesica':
+                    blueprintCtx.beginPath();
+                    blueprintCtx.moveTo(step.x1, step.y1);
+                    const endX = step.x1 + (step.x2 - step.x1) * progress;
+                    const endY = step.y1 + (step.y2 - step.y1) * progress;
+                    blueprintCtx.lineTo(endX, endY);
+                    blueprintCtx.stroke();
+                    break;
+                    
+                case 'triangle':
+                    blueprintCtx.beginPath();
+                    const totalPoints = step.points.length;
+                    const pointsToShow = Math.floor(totalPoints * progress);
+                    const remainderProgress = (totalPoints * progress) - pointsToShow;
+                    
+                    for (let i = 0; i <= pointsToShow && i < totalPoints; i++) {
+                        const point = step.points[i];
+                        if (i === 0) {
+                            blueprintCtx.moveTo(point[0], point[1]);
+                        } else {
+                            blueprintCtx.lineTo(point[0], point[1]);
+                        }
+                    }
+                    
+                    // Draw partial line to next point
+                    if (pointsToShow < totalPoints - 1 && remainderProgress > 0) {
+                        const currentPoint = step.points[pointsToShow];
+                        const nextPoint = step.points[pointsToShow + 1];
+                        const partialX = currentPoint[0] + (nextPoint[0] - currentPoint[0]) * remainderProgress;
+                        const partialY = currentPoint[1] + (nextPoint[1] - currentPoint[1]) * remainderProgress;
+                        blueprintCtx.lineTo(partialX, partialY);
+                    }
+                    
+                    if (progress >= 0.95) blueprintCtx.closePath();
+                    blueprintCtx.stroke();
+                    break;
+                    
+                case 'square':
+                    const size = step.size * progress;
+                    blueprintCtx.strokeRect(step.x, step.y, size, size);
+                    break;
+                    
+                case 'spiral':
+                    blueprintCtx.beginPath();
+                    const maxAngle = Math.PI * 6 * progress;
+                    for (let angle = 0; angle < maxAngle; angle += 0.1) {
+                        const radius = (angle / (Math.PI * 6)) * step.size;
+                        const x = step.x + Math.cos(angle) * radius;
+                        const y = step.y + Math.sin(angle) * radius;
+                        if (angle === 0) blueprintCtx.moveTo(x, y);
+                        else blueprintCtx.lineTo(x, y);
+                    }
+                    blueprintCtx.stroke();
+                    break;
+                    
+                case 'pillars':
+                    const pillarHeight = step.height * progress;
+                    // Left pillar (Boaz)
+                    blueprintCtx.fillRect(step.leftX - 10, step.y - pillarHeight/2, 20, pillarHeight);
+                    // Right pillar (Jachin)
+                    blueprintCtx.fillRect(step.rightX - 10, step.y - pillarHeight/2, 20, pillarHeight);
+                    
+                    if (progress > 0.8) {
+                        blueprintCtx.font = '14px Times New Roman';
+                        blueprintCtx.textAlign = 'center';
+                        blueprintCtx.fillText('B', step.leftX, step.y - pillarHeight/2 - 10);
+                        blueprintCtx.fillText('J', step.rightX, step.y - pillarHeight/2 - 10);
+                    }
+                    break;
+                    
+                case 'illumination':
+                    const lightRadius = step.radius * progress;
+                    const gradient = blueprintCtx.createRadialGradient(
+                        step.x, step.y, 0,
+                        step.x, step.y, lightRadius
+                    );
+                    gradient.addColorStop(0, `rgba(255, 255, 255, ${0.8 * progress})`);
+                    gradient.addColorStop(0.5, `rgba(255, 215, 0, ${0.4 * progress})`);
+                    gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+                    
+                    blueprintCtx.fillStyle = gradient;
+                    blueprintCtx.beginPath();
+                    blueprintCtx.arc(step.x, step.y, lightRadius, 0, Math.PI * 2);
+                    blueprintCtx.fill();
+                    break;
+            }
+            
+            blueprintCtx.shadowBlur = 0;
+        }
+        
+        function createCompletionParticles() {
+            const currentStep = blueprintSteps[blueprintProgress];
+            if (!currentStep) return;
+            
+            // Create particles at step location
+            for (let i = 0; i < 20; i++) {
+                particles.push({
+                    x: currentStep.x || width/2,
+                    y: currentStep.y || height/2,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: (Math.random() - 0.5) * 4,
+                    life: 1.0,
+                    decay: 0.02 + Math.random() * 0.02,
+                    size: 2 + Math.random() * 3
+                });
+            }
+        }
+        
+        function updateParticles() {
+            particles = particles.filter(particle => {
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                particle.vx *= 0.98;
+                particle.vy *= 0.98;
+                particle.life -= particle.decay;
+                return particle.life > 0;
+            });
+        }
+        
+        function drawParticles() {
+            particles.forEach(particle => {
+                const alpha = particle.life;
+                blueprintCtx.save();
+                blueprintCtx.globalAlpha = alpha;
+                blueprintCtx.fillStyle = 'rgba(255, 215, 0, 1)';
+                blueprintCtx.beginPath();
+                blueprintCtx.arc(particle.x, particle.y, particle.size * alpha, 0, Math.PI * 2);
+                blueprintCtx.fill();
+                blueprintCtx.restore();
+            });
+        }
+        
+        function animate() {
+            if (blueprintMode) {
+                drawBlueprint();
+            } else {
+                drawMask();
+            }
+            requestAnimationFrame(animate);
+        }
+        
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            
+            const cursor = document.getElementById('cursor');
+            cursor.style.left = mouseX + 'px';
+            cursor.style.top = mouseY + 'px';
+            
+            // Show tooltips for already discovered symbols
+            let nearDiscovered = false;
+            symbols.forEach(symbol => {
+                if (symbol.discovered) {
+                    const dist = Math.sqrt((mouseX - symbol.x) ** 2 + (mouseY - symbol.y) ** 2);
+                    if (dist < 50) {
+                        nearDiscovered = true;
+                        showTooltip(symbol, mouseX + 20, mouseY);
+                    }
+                }
+            });
+            
+            if (!nearDiscovered) {
+                hideTooltip();
+            }
+        });
+        
+        document.addEventListener('mouseleave', () => {
+            mouseX = -1000;
+            mouseY = -1000;
+            hideTooltip();
+        });
+        
+        window.addEventListener('resize', resize);
+        
+        resize();
+        animate();
+    </script>
+</body>
+</html>
