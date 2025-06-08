@@ -29,7 +29,7 @@ Embark on a mystical journey from darkness to light, where ancient symbols await
 | Pathway | Focus | Symbols |
 |---------|-------|---------|
 | **Traditional** | Classical geometric principles | Square, Compass, Level, Plumb |
-| **Philosophical** | Ancient symbols of enlightenment | All-Seeing Eye, Sacred Triangle, Spiral |
+| **Philosophical** | Ancient symbols of enlightenment | Eye, Sacred Triangle, Spiral |
 | **Historical** | Architectural and building traditions | Pillars, Temple, Keystone, Arch |
 | **Scientific** | Mathematical and astronomical knowledge | Sacred Geometry, Astronomy, Proportion |
 
